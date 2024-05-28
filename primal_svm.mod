@@ -5,8 +5,11 @@ param n;
 param m;
 param nu;
 
-param A{1..m,1..n};
-param y{1..m};
+param A_train{1..m,1..n};
+param y_train{1..m};
+
+param A_test{1..m,1..n};
+param y_test{1..m};
 
 var w {1..n};
 var gamma;
