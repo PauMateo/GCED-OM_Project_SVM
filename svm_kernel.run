@@ -1,0 +1,79 @@
+# FITXER RUN SVM. LAB ASSIGNMENT OM
+# GABRIEL FORTUNY I PAU MATEO
+# Curs 2023-24 Q2
+
+# $> ampl: include svm.run;
+
+# OPTIMITZEM PEL CONJUNT TRAIN
+
+# Resolem el primal
+
+reset;
+print "PRIMAL_SVM:";
+
+model primal_svm.mod;
+data "100_nl_svm.dat"; 
+
+option solver cplex;
+
+problem PRIMAL_SVM: w, gamma, s, primal, c1, c2;
+
+option cplex_options 'timing=1';
+solve PRIMAL_SVM;
+display w, gamma, s;
+
+
+# Resolem el dual
+
+reset;
+print "DUAL_SVM:";
+model dual_svm_kernel.mod;
+data "100_nl_svm.dat";
+
+option solver cplex;
+
+problem DUAL_SVM: la, dual, c1;
+
+option cplex_options 'timing=1';
+solve DUAL_SVM;
+display la;
+
+
+# Calculem a partir de les lambdes els valors òptims per w i gamma
+
+param wphi {1..n};
+let {j in {1..n}} wphi[j] := sum{i in {1..m}} la[i]*y_train[i]*(exp(-sum{k in {1..n}}((A_train[i,k]-A_train[j,k])^2) / (2*sigma^2) ));
+display w;
+
+param gamma;
+for {i in {1..m}} {
+	if la[i] > 0.01 and la[i] < nu*0.99 then {
+		# Quan es troba un valor que pertany al vector del SVM.
+		let gamma := 1/y_train[i] - sum{j in {1..n}} w[j]*A_train[i,j];
+		break;
+	}
+}
+display gamma;
+
+# CALCULEM ELS RESULTATS AMB LES PREDICCIONS PEL CONJUNT TEST I CALCULEM L'ACCURACY
+
+# Valors predits pel conjunt test
+param prediction {1..m};
+let {i in {1..m}} prediction[i] := gamma + sum{j in {1..n}}w[j]*A_test[i,j];
+let {i in {1..m}} prediction[i] := if prediction[i] <= 0 then -1 else 1;
+display prediction;
+
+# Calculem els punts mal predits
+param errors default 0;
+for {i in {1..m}} {
+	if prediction[i] != y_test[i] then
+		let errors := errors + 1;
+}
+
+display errors;
+
+param accuracy = (m - errors) / m;
+display accuracy;
+
+# https://scikit-learn.org/stable/modules/generated/sklearn.datasets.make_classification.html
+
