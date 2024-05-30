@@ -2,14 +2,14 @@
 # GABRIEL FORTUNY I PAU MATEO
 # Curs 2023-24 Q2
 
-# $> ampl: include svm.run;
+# $> ampl: include svm_kernel.run;
 
 # OPTIMITZEM PEL CONJUNT TRAIN
 # Resolem el dual
 reset;
 print "DUAL_SVM:";
 model dual_svm_kernel.mod;
-data "100_nl_svm.dat";
+data "data/swiss_roll.dat";
 
 option solver cplex;
 
@@ -21,11 +21,7 @@ display la;
 
 
 # CALCULEM ELS RESULTATS AMB LES PREDICCIONS PEL CONJUNT TEST I CALCULEM L'ACCURACY
-#busquem un punt que sigui Support Vector i ens guardem el seu índex:
-
-function K(x,y){
-	return exp(- sum{k in {1..n}}( (x[k]-y[k])^2) / (2*sigma^2) );
-}
+#busquem un punt que sigui Support Vector i ens guardem el seu Ã­ndex:
 
 
 param idx_SV;
@@ -38,17 +34,20 @@ for {i in {1..m}} {
 }
 
 # Valors predits pel conjunt test:
-param prediction {1..m};
-#let {i in {1..m}} prediction[i] := gamma + sum{j in {1..n}}w[j]*A_test[i,j];
-let {i in {1..m}} prediction[i] := sum{k in {1..m}}(  la[k]*y_train[k]*K(A_train[k,:], A_test[i,:]) ) +
-								 	1/y_train[idx_SV] - 
-								   	sum{k in {1..m}}(  la[k]*y_train[k]*K(A_train[k,:], A_train[idx_SV,:]) );
-let {i in {1..m}} prediction[i] := if prediction[i] <= 0 then -1 else 1;
+param gamma;
+let gamma := 1/y_train[idx_SV] - sum{j in {1..m}} la[j] * y_train[j] * 
+			 exp(-(sum{k in {1..n}} (A_train[idx_SV,k] - A_train[j,k])^2) / (2 * sigma^2));
+display gamma;
+
+param prediction {1..m_test};
+let {i in {1..m_test}} prediction[i] := gamma + sum{j in {1..m}} la[j] * y_train[j] * 
+									exp(-(sum{k in {1..n}} (A_train[j,k] - A_test[i,k])^2) / (2 * sigma^2));
+let {i in {1..m_test}} prediction[i] := if prediction[i] <= 0 then -1 else 1;
 display prediction;
 
 # Calculem els punts mal predits
 param errors default 0;
-for {i in {1..m}} {
+for {i in {1..m_test}} {
 	if prediction[i] != y_test[i] then
 		let errors := errors + 1;
 }
